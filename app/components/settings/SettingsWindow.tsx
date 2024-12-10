@@ -5,26 +5,30 @@ import { classNames } from '~/utils/classNames';
 import { DialogTitle, dialogVariants, dialogBackdropVariants } from '~/components/ui/Dialog';
 import { IconButton } from '~/components/ui/IconButton';
 import { providersList } from '~/lib/stores/settings';
-import { db, getAll, deleteById } from '~/lib/persistence';
+import { getAll, deleteById } from '~/lib/persistence';
 import { toast } from 'react-toastify';
 import { useNavigate } from '@remix-run/react';
 import commit from '~/commit.json';
 import Cookies from 'js-cookie';
 import styles from './Settings.module.scss';
 import { Switch } from '~/components/ui/Switch';
+import { useIndexedDB } from '~/lib/providers/IndexedDBProvider.client';
+import FilterTab from './filters/FilterTab.client';
+import { ClientOnly } from 'remix-utils/client-only';
 
 interface SettingsProps {
   open: boolean;
   onClose: () => void;
 }
 
-type TabType = 'chat-history' | 'providers' | 'features' | 'debug' | 'connection';
+type TabType = 'chat-history' | 'providers' | 'features' | 'debug' |'connection' |'middlewares';
 
 // Providers that support base URL configuration
 const URL_CONFIGURABLE_PROVIDERS = ['Ollama', 'LMStudio', 'OpenAILike'];
 
 export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   const navigate = useNavigate();
+  const { db } = useIndexedDB();
   const [activeTab, setActiveTab] = useState<TabType>('chat-history');
   const [isDebugEnabled, setIsDebugEnabled] = useState(() => {
     const savedDebugState = Cookies.get('isDebugEnabled');
@@ -76,6 +80,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
     { id: 'chat-history', label: 'Chat History', icon: 'i-ph:book' },
     { id: 'providers', label: 'Providers', icon: 'i-ph:key' },
     { id: 'features', label: 'Features', icon: 'i-ph:star' },
+    { id: 'middlewares', label: 'Middlewares', icon: 'i-ph:lego' },
     { id: 'connection', label: 'Connection', icon: 'i-ph:link' },
     ...(isDebugEnabled ? [{ id: 'debug' as TabType, label: 'Debug Tab', icon: 'i-ph:bug' }] : []),
   ];
@@ -224,7 +229,14 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
   return (
     <RadixDialog.Root open={open}>
       <RadixDialog.Portal>
-        <RadixDialog.Overlay asChild onClick={onClose}>
+        <RadixDialog.Overlay
+          asChild
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }}
+        >
           <motion.div
             className="bg-black/50 fixed inset-0 z-max backdrop-blur-sm"
             initial="closed"
@@ -396,6 +408,7 @@ export const SettingsWindow = ({ open, onClose }: SettingsProps) => {
                       </div>
                     </div>
                   )}
+                  <ClientOnly>{() => <>{activeTab === 'middlewares' && <FilterTab />}</>}</ClientOnly>
                   {activeTab === 'debug' && isDebugEnabled && (
                     <div className="p-4">
                       <h3 className="text-lg font-medium text-bolt-elements-textPrimary mb-4">Debug Tab</h3>
